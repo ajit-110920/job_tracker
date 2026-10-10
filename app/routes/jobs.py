@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.schemas.job import Job
+from app.schemas.job import Job, JobResponse
 from app.models.job import Job as JobModel
 from app.database import get_db
 from app.services.job_service import (
@@ -13,18 +13,17 @@ from app.services.job_service import (
 )
 router = APIRouter()
 
-
-@router.post("/jobs")
+@router.post("/jobs", response_model=JobResponse)
 def create_job_route(job: Job, db: Session = Depends(get_db)):
     return create_job(db, job)
 
 
-@router.get("/jobs")
+@router.get("/jobs", response_model=list[JobResponse])
 def get_jobs_route(db: Session = Depends(get_db)):
     return get_jobs(db)
 
 
-@router.get("/jobs/{job_id}")
+@router.get("/jobs/{job_id}", response_model=JobResponse)
 def get_job_route(job_id: int, db: Session = Depends(get_db)):
     job = get_job(db, job_id)
 
@@ -34,7 +33,8 @@ def get_job_route(job_id: int, db: Session = Depends(get_db)):
     return job
 
 
-@router.put("/jobs/{job_id}")
+
+@router.put("/jobs/{job_id}", response_model=JobResponse)
 def update_job_route(
     job_id: int,
     updated_job: Job,
@@ -48,7 +48,7 @@ def update_job_route(
     return job
 
 
-@router.delete("/jobs/{job_id}")
+@router.delete("/jobs/{job_id}", status_code=204)
 def delete_job_route(
     job_id: int,
     db: Session = Depends(get_db)
@@ -56,6 +56,7 @@ def delete_job_route(
     job = delete_job(db, job_id)
 
     if job is None:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    return {"message": "Job deleted successfully"}
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found"
+        )
