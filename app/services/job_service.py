@@ -6,10 +6,11 @@ from app.schemas.job import Job
 
 def create_job(db: Session, job: Job):
     new_job = JobModel(
-        company=job.company,
-        role=job.role,
-        status=job.status
-    )
+    company=job.company,
+    role=job.role,
+    status=job.status,
+    applied_date=job.applied_date
+)
 
     db.add(new_job)
     db.commit()
@@ -32,6 +33,7 @@ def update_job(db: Session, job_id: int, updated_job: Job):
     job.company = updated_job.company
     job.role = updated_job.role
     job.status = updated_job.status
+    job.applied_date = updated_job.applied_date
 
     db.commit()
     db.refresh(job)
