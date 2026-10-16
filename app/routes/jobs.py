@@ -13,7 +13,7 @@ from app.services.job_service import (
 )
 router = APIRouter()
 
-@router.post("/jobs", response_model=JobResponse)
+@router.post("/jobs", response_model=JobResponse, status_code=201)
 def create_job_route(job: Job, db: Session = Depends(get_db)):
     return create_job(db, job)
 
