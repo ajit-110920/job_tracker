@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.schemas.job import Job, JobResponse
@@ -18,9 +18,23 @@ def create_job_route(job: Job, db: Session = Depends(get_db)):
     return create_job(db, job)
 
 
+
+
+
 @router.get("/jobs", response_model=list[JobResponse])
-def get_jobs_route(db: Session = Depends(get_db)):
-    return get_jobs(db)
+def get_jobs_route(
+    status: str | None = None,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=10, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    return get_jobs(
+        db,
+        status=status,
+        skip=skip,
+        limit=limit,
+    )
+
 
 
 @router.get("/jobs/{job_id}", response_model=JobResponse)

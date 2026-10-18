@@ -18,8 +18,24 @@ def create_job(db: Session, job: Job):
 
     return new_job
 
-def get_jobs(db: Session):
-    return db.query(JobModel).all()
+
+
+def get_jobs(
+    db: Session,
+    status: str | None = None,
+    skip: int = 0,
+    limit: int = 10,
+):
+    query = db.query(JobModel)
+
+    if status is not None:
+        query = query.filter(JobModel.status == status)
+
+    query = query.order_by(JobModel.id.asc())
+
+    return query.offset(skip).limit(limit).all()
+
+
 
 def get_job(db: Session, job_id: int):
     return db.query(JobModel).filter(JobModel.id == job_id).first()
