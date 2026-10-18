@@ -179,3 +179,122 @@ def test_create_job_invalid_date(client):
     )
 
     assert response.status_code == 422
+
+
+def test_filter_jobs_by_status(client):
+    client.post(
+        "/jobs",
+        json={
+            "company": "Google",
+            "role": "Backend Developer",
+            "status": "Applied",
+        },
+    )
+
+    client.post(
+        "/jobs",
+        json={
+            "company": "Microsoft",
+            "role": "Software Engineer",
+            "status": "Interview",
+        },
+    )
+
+    response = client.get("/jobs?status=Applied")
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["company"] == "Google"
+    assert data[0]["status"] == "Applied"
+
+
+def test_jobs_reject_negative_skip(client):
+    response = client.get("/jobs?skip=-1")
+
+    assert response.status_code == 422
+
+
+def test_jobs_reject_limit_over_100(client):
+    response = client.get("/jobs?limit=101")
+
+    assert response.status_code == 422
+
+
+def test_jobs_pagination(client):
+    # Create three jobs
+    for company in ["Google", "Microsoft", "Amazon"]:
+        client.post(
+            "/jobs",
+            json={
+                "company": company,
+                "role": "Backend Developer",
+                "status": "Applied",
+            },
+        )
+
+    # Request the first two jobs
+    response = client.get("/jobs?skip=0&limit=2")
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert len(data) == 2
+    assert [job["company"] for job in data] == [
+        "Google",
+        "Microsoft",
+    ]
+
+    # Request the next job
+    response = client.get("/jobs?skip=2&limit=2")
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["company"] == "Amazon"
+
+
+def test_filter_jobs_with_pagination(client):
+    jobs = [
+        ("Google", "Applied"),
+        ("Microsoft", "Interview"),
+        ("Amazon", "Applied"),
+        ("Infosys", "Applied"),
+        ("NVIDIA", "Interview"),
+    ]
+
+    for company, status in jobs:
+        client.post(
+            "/jobs",
+            json={
+                "company": company,
+                "role": "Software Engineer",
+                "status": status,
+            },
+        )
+
+    response = client.get(
+        "/jobs?status=Applied&skip=0&limit=2"
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert len(data) == 2
+    assert [job["company"] for job in data] == [
+        "Google",
+        "Amazon",
+    ]
+
+    # Get the next page of Applied jobs
+    response = client.get(
+        "/jobs?status=Applied&skip=2&limit=2"
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["company"] == "Infosys"
