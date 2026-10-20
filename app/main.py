@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from app.database import engine
 from app.routes.jobs import router as jobs_router
-
+from app.routes import auth
 app = FastAPI()
 
 
@@ -11,3 +11,4 @@ def health_check():
 
 
 app.include_router(jobs_router)
+app.include_router(auth.router)

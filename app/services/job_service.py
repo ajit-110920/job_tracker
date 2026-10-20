@@ -4,13 +4,15 @@ from app.models.job import Job as JobModel
 from app.schemas.job import Job
 
 
-def create_job(db: Session, job: Job):
+
+def create_job(db: Session, job: Job, user_id: int):
     new_job = JobModel(
-    company=job.company,
-    role=job.role,
-    status=job.status,
-    applied_date=job.applied_date
-)
+        company=job.company,
+        role=job.role,
+        status=job.status,
+        applied_date=job.applied_date,
+        user_id=user_id,
+    )
 
     db.add(new_job)
     db.commit()
@@ -22,11 +24,12 @@ def create_job(db: Session, job: Job):
 
 def get_jobs(
     db: Session,
+    user_id: int,
     status: str | None = None,
     skip: int = 0,
     limit: int = 10,
 ):
-    query = db.query(JobModel)
+    query = db.query(JobModel).filter(JobModel.user_id == user_id)
 
     if status is not None:
         query = query.filter(JobModel.status == status)
@@ -37,11 +40,33 @@ def get_jobs(
 
 
 
-def get_job(db: Session, job_id: int):
-    return db.query(JobModel).filter(JobModel.id == job_id).first()
 
-def update_job(db: Session, job_id: int, updated_job: Job):
-    job = db.query(JobModel).filter(JobModel.id == job_id).first()
+
+def get_job(db: Session, job_id: int, user_id: int):
+    return (
+        db.query(JobModel)
+        .filter(
+            JobModel.id == job_id,
+            JobModel.user_id == user_id,
+        )
+        .first()
+    )
+
+
+def update_job(
+    db: Session,
+    job_id: int,
+    updated_job: Job,
+    user_id: int,
+):
+    job = (
+        db.query(JobModel)
+        .filter(
+            JobModel.id == job_id,
+            JobModel.user_id == user_id,
+        )
+        .first()
+    )
 
     if job is None:
         return None
@@ -56,8 +81,16 @@ def update_job(db: Session, job_id: int, updated_job: Job):
 
     return job
 
-def delete_job(db: Session, job_id: int):
-    job = db.query(JobModel).filter(JobModel.id == job_id).first()
+
+def delete_job(db: Session, job_id: int, user_id: int):
+    job = (
+        db.query(JobModel)
+        .filter(
+            JobModel.id == job_id,
+            JobModel.user_id == user_id,
+        )
+        .first()
+    )
 
     if job is None:
         return None
