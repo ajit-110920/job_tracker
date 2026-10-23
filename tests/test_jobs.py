@@ -4,12 +4,12 @@ from datetime import date
 from app.auth import create_access_token
 
 
-def get_auth_headers(client):
-    """Register a test user and return authentication headers."""
+
+def get_auth_headers(client, email="jobs-test@example.com"):
     response = client.post(
         "/auth/register",
         json={
-            "email": "jobs-test@example.com",
+            "email": email,
             "password": "SecurePass123!",
         },
     )
