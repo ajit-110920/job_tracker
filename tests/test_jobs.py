@@ -344,3 +344,226 @@ def test_create_job_requires_authentication(client):
     )
 
     assert response.status_code == 401
+
+
+def test_user_cannot_access_another_users_job(client):
+    # Create two different authenticated users
+    user_a_headers = get_auth_headers(
+        client, "user-a@example.com"
+    )
+    user_b_headers = get_auth_headers(
+        client, "user-b@example.com"
+    )
+
+    # User A creates a job
+    create_response = client.post(
+        "/jobs",
+        headers=user_a_headers,
+        json={
+            "company": "Google",
+            "role": "Software Engineer",
+            "status": "Applied",
+            "applied_date": "2026-10-20",
+        },
+    )
+
+    assert create_response.status_code == 201
+    job_id = create_response.json()["id"]
+
+    # User B tries to view User A's job
+    get_response = client.get(
+        f"/jobs/{job_id}",
+        headers=user_b_headers,
+    )
+    assert get_response.status_code == 404
+
+    # User B tries to update User A's job
+    update_response = client.put(
+        f"/jobs/{job_id}",
+        headers=user_b_headers,
+        json={
+            "company": "Google",
+            "role": "Senior Engineer",
+            "status": "Offer",
+            "applied_date": "2026-10-20",
+        },
+    )
+    assert update_response.status_code == 404
+
+    # User B tries to delete User A's job
+    delete_response = client.delete(
+        f"/jobs/{job_id}",
+        headers=user_b_headers,
+    )
+    assert delete_response.status_code == 404
+
+    # Verify User A's job still exists
+    owner_response = client.get(
+        f"/jobs/{job_id}",
+        headers=user_a_headers,
+    )
+    assert owner_response.status_code == 200
+    assert owner_response.json()["role"] == "Software Engineer"
+
+
+def test_search_jobs_by_company_and_role(client):
+    headers = get_auth_headers(client)
+
+    jobs = [
+        {
+            "company": "Google",
+            "role": "Python Developer",
+            "status": "Applied",
+            "applied_date": "2026-10-10",
+        },
+        {
+            "company": "Amazon",
+            "role": "Cloud Engineer",
+            "status": "Interview",
+            "applied_date": "2026-10-11",
+        },
+        {
+            "company": "Microsoft",
+            "role": "Python Intern",
+            "status": "Applied",
+            "applied_date": "2026-10-12",
+        },
+    ]
+
+    for job in jobs:
+        response = client.post(
+            "/jobs",
+            headers=headers,
+            json=job,
+        )
+        assert response.status_code == 201
+
+    # Search by company name
+    response = client.get(
+        "/jobs?search=Google",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["company"] == "Google"
+
+    # Search by role name
+    response = client.get(
+        "/jobs?search=Python",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert all("Python" in job["role"] for job in data)
+
+
+def test_search_jobs_with_status_filter(client):
+    headers = get_auth_headers(client)
+
+    jobs = [
+        {
+            "company": "Google",
+            "role": "Python Developer",
+            "status": "Applied",
+            "applied_date": "2026-10-10",
+        },
+        {
+            "company": "Amazon",
+            "role": "Python Engineer",
+            "status": "Interview",
+            "applied_date": "2026-10-11",
+        },
+        {
+            "company": "Microsoft",
+            "role": "Backend Developer",
+            "status": "Applied",
+            "applied_date": "2026-10-12",
+        },
+    ]
+
+    for job in jobs:
+        response = client.post(
+            "/jobs",
+            headers=headers,
+            json=job,
+        )
+        assert response.status_code == 201
+
+    response = client.get(
+        "/jobs?search=Python&status=Applied",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["company"] == "Google"
+    assert data[0]["status"] == "Applied"
+
+
+def test_sort_jobs_by_applied_date(client):
+    headers = get_auth_headers(client)
+
+    jobs = [
+        {
+            "company": "Google",
+            "role": "Python Developer",
+            "status": "Applied",
+            "applied_date": "2026-10-10",
+        },
+        {
+            "company": "Amazon",
+            "role": "Cloud Engineer",
+            "status": "Applied",
+            "applied_date": "2026-10-15",
+        },
+        {
+            "company": "Microsoft",
+            "role": "Backend Developer",
+            "status": "Applied",
+            "applied_date": "2026-10-12",
+        },
+    ]
+
+    for job in jobs:
+        response = client.post(
+            "/jobs",
+            headers=headers,
+            json=job,
+        )
+        assert response.status_code == 201
+
+    # Newest applications first
+    response = client.get(
+        "/jobs?sort_by=applied_date&order=desc",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert [job["company"] for job in data] == [
+        "Amazon",
+        "Microsoft",
+        "Google",
+    ]
+
+    # Oldest applications first
+    response = client.get(
+        "/jobs?sort_by=applied_date&order=asc",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert [job["company"] for job in data] == [
+        "Google",
+        "Microsoft",
+        "Amazon",
+    ]

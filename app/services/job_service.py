@@ -22,19 +22,46 @@ def create_job(db: Session, job: Job, user_id: int):
 
 
 
+
 def get_jobs(
     db: Session,
     user_id: int,
     status: str | None = None,
+    search: str | None = None,
     skip: int = 0,
     limit: int = 10,
+    sort_by: str = "id",
+    order: str = "asc",
 ):
-    query = db.query(JobModel).filter(JobModel.user_id == user_id)
+    query = db.query(JobModel).filter(
+        JobModel.user_id == user_id
+    )
 
     if status is not None:
         query = query.filter(JobModel.status == status)
 
-    query = query.order_by(JobModel.id.asc())
+    if search is not None:
+        search_term = f"%{search.strip()}%"
+        query = query.filter(
+            JobModel.company.ilike(search_term)
+            | JobModel.role.ilike(search_term)
+        )
+
+    
+    sort_column = {
+        "id": JobModel.id,
+        "company": JobModel.company,
+        "applied_date": JobModel.applied_date,
+    }.get(sort_by)
+
+    if sort_column is None:
+        sort_column = JobModel.id
+
+    if order == "desc":
+        query = query.order_by(sort_column.desc())
+    else:
+        query = query.order_by(sort_column.asc())
+
 
     return query.offset(skip).limit(limit).all()
 

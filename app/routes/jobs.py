@@ -29,6 +29,9 @@ def create_job_route(
 @router.get("/jobs", response_model=list[JobResponse])
 def get_jobs_route(
     status: str | None = None,
+    search: str | None = None,
+    sort_by: str = "id",
+    order: str = "asc",
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=10, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -38,9 +41,13 @@ def get_jobs_route(
         db,
         user_id=current_user.id,
         status=status,
+        search=search,
+        sort_by=sort_by,
+        order=order,
         skip=skip,
         limit=limit,
     )
+
 
 
 @router.get("/jobs/{job_id}", response_model=JobResponse)
@@ -89,3 +96,6 @@ def delete_job_route(
         raise HTTPException(status_code=404, detail="Job not found")
 
     return None
+
+
+

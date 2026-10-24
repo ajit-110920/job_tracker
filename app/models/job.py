@@ -15,6 +15,6 @@ class Job(Base):
     user_id = Column(
         Integer,
         ForeignKey("users.id"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
