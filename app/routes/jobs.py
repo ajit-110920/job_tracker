@@ -1,7 +1,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-
+from typing import Literal
 from app.auth import get_current_user
 from app.database import get_db
 from app.models.user import User
@@ -12,6 +12,7 @@ from app.services.job_service import (
     get_job,
     update_job,
     delete_job,
+    get_job_stats,
 )
 
 router = APIRouter()
@@ -30,8 +31,8 @@ def create_job_route(
 def get_jobs_route(
     status: str | None = None,
     search: str | None = None,
-    sort_by: str = "id",
-    order: str = "asc",
+    sort_by: Literal["id", "company", "applied_date"] = "id",
+    order: Literal["asc", "desc"] = "asc",
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=10, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -48,6 +49,16 @@ def get_jobs_route(
         limit=limit,
     )
 
+
+@router.get("/jobs/stats")
+def get_job_stats_route(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return get_job_stats(
+        db,
+        user_id=current_user.id,
+    )
 
 
 @router.get("/jobs/{job_id}", response_model=JobResponse)

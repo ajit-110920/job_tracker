@@ -567,3 +567,29 @@ def test_sort_jobs_by_applied_date(client):
         "Microsoft",
         "Amazon",
     ]
+
+def test_job_stats(client):
+    headers = get_auth_headers(client, email="stats-test@example.com")
+
+    jobs = [
+        {"company": "Google", "role": "Developer", "status": "Applied"},
+        {"company": "Microsoft", "role": "Analyst", "status": "Applied"},
+        {"company": "Amazon", "role": "Developer", "status": "Interview"},
+        {"company": "Infosys", "role": "Developer", "status": "Offer"},
+        {"company": "TCS", "role": "Developer", "status": "Rejected"},
+    ]
+
+    for job in jobs:
+        response = client.post("/jobs", json=job, headers=headers)
+        assert response.status_code == 201
+
+    response = client.get("/jobs/stats", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "total": 5,
+        "applied": 2,
+        "interview": 1,
+        "offers": 1,
+        "rejected": 1,
+    }

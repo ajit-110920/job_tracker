@@ -66,9 +66,6 @@ def get_jobs(
     return query.offset(skip).limit(limit).all()
 
 
-
-
-
 def get_job(db: Session, job_id: int, user_id: int):
     return (
         db.query(JobModel)
@@ -126,3 +123,35 @@ def delete_job(db: Session, job_id: int, user_id: int):
     db.commit()
 
     return job
+
+
+def get_job_stats(db: Session, user_id: int):
+    jobs = db.query(JobModel).filter(
+        JobModel.user_id == user_id
+    )
+
+    total = jobs.count()
+
+    applied = jobs.filter(
+        JobModel.status == "Applied"
+    ).count()
+
+    interview = jobs.filter(
+        JobModel.status == "Interview"
+    ).count()
+
+    offers = jobs.filter(
+        JobModel.status == "Offer"
+    ).count()
+
+    rejected = jobs.filter(
+        JobModel.status == "Rejected"
+    ).count()
+
+    return {
+        "total": total,
+        "applied": applied,
+        "interview": interview,
+        "offers": offers,
+        "rejected": rejected,
+    }
