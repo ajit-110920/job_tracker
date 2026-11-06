@@ -1,0 +1,66 @@
+
+name: Job Tracker CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: jobtracker
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: job_tracker_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jobtracker -d job_tracker_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg://jobtracker:ci_password@localhost:5432/job_tracker_ci
+      TEST_DATABASE_URL: postgresql+psycopg://jobtracker:ci_password@localhost:5432/job_tracker_test
+      JWT_SECRET_KEY: ci-only-secret-key-not-for-production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create test database
+        run: |
+          python - <<'PY'
+          import psycopg
+
+          connection = psycopg.connect(
+              "postgresql://jobtracker:ci_password@localhost:5432/job_tracker_ci",
+              autocommit=True,
+          )
+
+          with connection.cursor() as cursor:
+              cursor.execute("CREATE DATABASE job_tracker_test")
+
+          connection.close()
+          print("Test database created successfully!")
+          PY
+
+      - name: Run tests
+        run: pytest -v
