@@ -63,4 +63,4 @@ jobs:
           PY
 
       - name: Run tests
-        run: pytest -v
+        run: python -m pytest -v
