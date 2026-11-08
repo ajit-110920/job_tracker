@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from app.database import engine
 from app.routes.jobs import router as jobs_router
 from app.routes import auth
 app = FastAPI()
