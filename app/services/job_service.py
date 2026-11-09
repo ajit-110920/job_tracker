@@ -1,11 +1,16 @@
+import logging
+
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.job import Job as JobModel
-from app.schemas.job import Job
+from app.schemas.job import Job, JobUpdate
 
 
+logger = logging.getLogger(__name__)
 
-def create_job(db: Session, job: Job, user_id: int):
+
+def create_job(db: Session, job: Job, user_id: int) -> JobModel:
     new_job = JobModel(
         company=job.company,
         role=job.role,
@@ -18,9 +23,9 @@ def create_job(db: Session, job: Job, user_id: int):
     db.commit()
     db.refresh(new_job)
 
+    logger.info("Job created: id=%d user=%d", new_job.id, user_id)
+
     return new_job
-
-
 
 
 def get_jobs(
@@ -47,21 +52,16 @@ def get_jobs(
             | JobModel.role.ilike(search_term)
         )
 
-    
     sort_column = {
         "id": JobModel.id,
         "company": JobModel.company,
         "applied_date": JobModel.applied_date,
-    }.get(sort_by)
-
-    if sort_column is None:
-        sort_column = JobModel.id
+    }.get(sort_by, JobModel.id)
 
     if order == "desc":
         query = query.order_by(sort_column.desc())
     else:
         query = query.order_by(sort_column.asc())
-
 
     return query.offset(skip).limit(limit).all()
 
@@ -106,6 +106,37 @@ def update_job(
     return job
 
 
+def patch_job(
+    db: Session,
+    job_id: int,
+    patch: JobUpdate,
+    user_id: int,
+):
+    job = (
+        db.query(JobModel)
+        .filter(
+            JobModel.id == job_id,
+            JobModel.user_id == user_id,
+        )
+        .first()
+    )
+
+    if job is None:
+        return None
+
+    update_data = patch.model_dump(exclude_unset=True)
+
+    for field, value in update_data.items():
+        setattr(job, field, value)
+
+    db.commit()
+    db.refresh(job)
+
+    logger.info("Job patched: id=%d fields=%s", job_id, list(update_data.keys()))
+
+    return job
+
+
 def delete_job(db: Session, job_id: int, user_id: int):
     job = (
         db.query(JobModel)
@@ -122,36 +153,27 @@ def delete_job(db: Session, job_id: int, user_id: int):
     db.delete(job)
     db.commit()
 
+    logger.info("Job deleted: id=%d user=%d", job_id, user_id)
+
     return job
 
 
-def get_job_stats(db: Session, user_id: int):
-    jobs = db.query(JobModel).filter(
-        JobModel.user_id == user_id
+def get_job_stats(db: Session, user_id: int) -> dict:
+    """Get job statistics using a single GROUP BY query."""
+    rows = (
+        db.query(JobModel.status, func.count())
+        .filter(JobModel.user_id == user_id)
+        .group_by(JobModel.status)
+        .all()
     )
 
-    total = jobs.count()
-
-    applied = jobs.filter(
-        JobModel.status == "Applied"
-    ).count()
-
-    interview = jobs.filter(
-        JobModel.status == "Interview"
-    ).count()
-
-    offers = jobs.filter(
-        JobModel.status == "Offer"
-    ).count()
-
-    rejected = jobs.filter(
-        JobModel.status == "Rejected"
-    ).count()
+    counts = {status: count for status, count in rows}
+    total = sum(counts.values())
 
     return {
         "total": total,
-        "applied": applied,
-        "interview": interview,
-        "offers": offers,
-        "rejected": rejected,
+        "applied": counts.get("Applied", 0),
+        "interview": counts.get("Interview", 0),
+        "offers": counts.get("Offer", 0),
+        "rejected": counts.get("Rejected", 0),
     }

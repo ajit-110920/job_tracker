@@ -1,4 +1,3 @@
-
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -37,6 +36,19 @@ describe("Job Tracker Authentication", () => {
     expect(
       screen.getByRole("heading", { name: "Create an account" })
     ).toBeInTheDocument();
+  });
+
+  it("should toggle password visibility", async () => {
+    const user = userEvent.setup();
+    render(<JobTracker />);
+
+    const passwordInput = screen.getByLabelText("Password");
+    expect(passwordInput).toHaveAttribute("type", "password");
+
+    const toggleButton = screen.getByLabelText("Show password");
+    await user.click(toggleButton);
+
+    expect(passwordInput).toHaveAttribute("type", "text");
   });
 });
 
@@ -87,6 +99,43 @@ describe("Job Tracker Dashboard", () => {
 
     expect(screen.getByText("Google")).toBeInTheDocument();
     expect(
-    screen.getByText("Applied", { selector: ".status" })
-    ).toBeInTheDocument();  });
+      screen.getByText("Applied", { selector: ".status" })
+    ).toBeInTheDocument();
+  });
+
+  it("should allow the user to logout and return to login screen", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("jobtrack_token", "fake-test-token");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        if (url.includes("/jobs/stats")) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ total: 0 }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve([]),
+        });
+      })
+    );
+
+    render(<JobTracker />);
+
+    const logoutButton = await screen.findByRole("button", { name: /sign out/i });
+    expect(logoutButton).toBeInTheDocument();
+
+    await user.click(logoutButton);
+
+    // Verify localStorage cleared and redirected to login screen
+    expect(localStorage.getItem("jobtrack_token")).toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "Welcome back" })
+    ).toBeInTheDocument();
+  });
 });

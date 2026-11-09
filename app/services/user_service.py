@@ -1,15 +1,16 @@
+import logging
 
 from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.schemas.user import UserCreate
-from pwdlib import PasswordHash
+from app.security import password_hash
 
 
-password_hash = PasswordHash.recommended()
+logger = logging.getLogger(__name__)
 
 
-def create_user(db: Session, user: UserCreate):
+def create_user(db: Session, user: UserCreate) -> User:
     hashed_password = password_hash.hash(user.password)
 
     new_user = User(
@@ -20,5 +21,7 @@ def create_user(db: Session, user: UserCreate):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+    logger.info("User registered: %s", user.email)
 
     return new_user

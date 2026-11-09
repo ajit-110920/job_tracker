@@ -1,15 +1,18 @@
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from pwdlib import PasswordHash
 
-from app.schemas.user import UserLogin
+from app.schemas.user import UserLogin, TokenResponse
 from app.auth import create_access_token
 from app.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
 from app.services.user_service import create_user
+from app.security import password_hash
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -45,10 +48,7 @@ def register_user(
         )
 
 
-password_hash = PasswordHash.recommended()
-
-
-@router.post("/login")
+@router.post("/login", response_model=TokenResponse)
 def login_user(
     credentials: UserLogin,
     db: Session = Depends(get_db),
@@ -71,7 +71,6 @@ def login_user(
 
     access_token = create_access_token(user.id)
 
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-    }
+    logger.info("User logged in: %s", credentials.email)
+
+    return TokenResponse(access_token=access_token)
